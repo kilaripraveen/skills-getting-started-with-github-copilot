@@ -35,9 +35,16 @@ document.addEventListener("DOMContentLoaded", () => {
         activityCard.className = "activity-card";
 
         const spotsLeft = details.max_participants - details.participants.length;
-        const participantsList = details.participants.length > 0
-          ? details.participants.map(p => `<li>${p}</li>`).join('')
-          : '<li class="no-participants">No participants yet</li>';
+        
+        // Create participants list with delete buttons
+        let participantsList = "";
+        if (details.participants.length > 0) {
+          participantsList = details.participants
+            .map(p => `<li><span>${p}</span><button class="delete-btn" title="Remove participant" data-activity="${name}" data-email="${p}">✕</button></li>`)
+            .join('');
+        } else {
+          participantsList = '<li class="no-participants">No participants yet</li>';
+        }
 
         activityCard.innerHTML = `
           <h4>${name}</h4>
@@ -54,6 +61,17 @@ document.addEventListener("DOMContentLoaded", () => {
 
         activitiesList.appendChild(activityCard);
 
+        // Add click handlers for delete buttons
+        const deleteButtons = activityCard.querySelectorAll(".delete-btn");
+        deleteButtons.forEach(btn => {
+          btn.addEventListener("click", async (e) => {
+            e.preventDefault();
+            const activityName = btn.getAttribute("data-activity");
+            const email = btn.getAttribute("data-email");
+            await removeParticipant(activityName, email);
+          });
+        });
+
         // Add option to dropdown
         const option = document.createElement("option");
         option.value = name;
@@ -64,6 +82,33 @@ document.addEventListener("DOMContentLoaded", () => {
     } catch (error) {
       console.error("Error fetching activities:", error);
       activitiesList.innerHTML = "<p>Failed to load activities. Please try again later.</p>";
+    }
+  }
+
+  // Function to remove a participant
+  async function removeParticipant(activityName, email) {
+    try {
+      console.log(`Removing ${email} from ${activityName}...`);
+      const response = await fetch(
+        `/activities/${encodeURIComponent(activityName)}/participants/${encodeURIComponent(email)}`,
+        { method: "DELETE" }
+      );
+
+      const result = await response.json();
+      console.log("Remove response:", result);
+
+      if (response.ok) {
+        console.log("Participant removed successfully! Refreshing activities...");
+        // Refresh the activities list
+        setTimeout(() => {
+          fetchActivities();
+        }, 100);
+      } else {
+        alert(result.detail || "Failed to remove participant");
+      }
+    } catch (error) {
+      console.error("Error removing participant:", error);
+      alert("Failed to remove participant. Please try again.");
     }
   }
 
